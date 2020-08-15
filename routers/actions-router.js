@@ -19,12 +19,12 @@ router.get("/", (req, res) => {
 });
 
 //router.get to request to find specific action with id or specific project, if met display action
-router.get("/:id/actions", (req, res) => {
+router.get("/:id/actions", validateActionId, (req, res) => {
   res.status(200).json(req.action);
 });
 
 //router.delete request for specific action for specific projeect with id. if/else for 200 if action found or 400 if not  or 500 if error deleting
-router.delete("/projects/:id/actions/:id", (req, res) => {
+router.delete("/projects/:id/actions/:id", validateActionId, (req, res) => {
   Action.remove(req.action.id)
     .then((count) => {
       if (count > 0) {
@@ -39,13 +39,46 @@ router.delete("/projects/:id/actions/:id", (req, res) => {
     });
 });
 
-//router.put request to update specific action with id
-//if/esle statement to req id and action body and what hppens if it does not work (500, 404)
-/*router.put("/projects/:id/actions/:id", (req,res) => {
-  Action.update(req.action.id, req.body)
+router.put("/projects/:id/actions/:id", validateActionId, (req, res) => {
+  Posts.update(req.post.id, req.body)
     .then((count) => {
-      Action.
+      if (count) {
+        Posts.getById(req.post.id)
+          .then((post) => {
+            res.status(200).json(post);
+          })
+          .catch((err) => {
+            req
+              .status(500)
+              .json({ message: "An error occured during getting post" });
+          });
+      } else {
+        res.status(404).json({ message: "The post could not be found" });
+      }
     })
-})*/
+    .catch((error) => {
+      console.log(error);
+      res.status(500).json({
+        message: "Error updating the post",
+      });
+    });
+});
+
+function validateActionId(req, res, next) {
+  // do your magic!
+  const { id } = req.params;
+  Action.getById(id)
+    .then((action) => {
+      if (action) {
+        req.action = action;
+        next();
+      } else {
+        res.status(400).json({ message: " invalid action request" });
+      }
+    })
+    .catch((err) => {
+      res.status(500).json({ message: "did not work", err });
+    });
+}
 
 module.exports = router;
