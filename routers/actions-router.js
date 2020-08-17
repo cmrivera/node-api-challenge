@@ -20,7 +20,7 @@ router.get("/", (req, res) => {
 });
 
 //router.get to request to find specific action with id or specific project, if met display action
-router.get("/projects/:id/actions/:id", validateActionId, (req, res) => {
+router.get("/projects/:id/actions", validateActionId, (req, res) => {
   res.status(200).json(req.action);
 });
 
@@ -46,7 +46,7 @@ router.put(
   validateAction,
   (req, res) => {
     console.log(actions);
-    Action.update(req.params.id, req.body)
+    Action.update(req.action.id, req.body)
       .then((action) => {
         res.status(200).json(action);
       })
