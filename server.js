@@ -15,8 +15,8 @@ server.get("/", (req, res) => {
 //middleware
 
 server.use(logger);
-server.use(projectRouter);
-server.use(actionRouter);
+server.use("/", projectRouter);
+server.use("/", actionRouter);
 
 function logger(req, res, next) {
   console.log(`${req.method} Request ${req.url} [${new Date().toISOString()}]`);

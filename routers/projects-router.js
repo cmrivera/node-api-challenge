@@ -20,7 +20,15 @@ router.get("/projects", (req, res) => {
 
 //router.get request to request specific project with id
 router.get("/projects/:id", validateProjectId, (req, res) => {
-  res.status(200).json(project);
+  const id = req.params.id;
+  Project.get(id)
+    .then((project) => {
+      res.status(200).json(project);
+    })
+    .catch((err) => {
+      console.log(err);
+      next(err);
+    });
 });
 
 //post request to add a project, if no error send 201 if err send 500
@@ -37,7 +45,7 @@ router.post("/projects/", validateProject, (req, res, next) => {
 
 //get specific projects actions with id, if not give 500 mess
 router.get("/projects/:id/actions", validateProjectId, (req, res) => {
-  Project.getProjectActions(req.action.id)
+  Project.getProjectActions(req.params.id)
     .then((actions) => {
       res.status(200).json(actions);
     })
@@ -52,14 +60,16 @@ router.get("/projects/:id/actions", validateProjectId, (req, res) => {
 //router.post request for actions, req projet id.
 //if req met display actions of specific project, if not send err message
 router.post(
-  "projects/:id/actions",
+  "/projects/:id/actions",
   validateProjectId,
   validateAction,
   (req, res, next) => {
-    const { description, notes } = req.body;
-    const { id: project_id } = req.params;
-
-    Action.insert({ description, notes, project_id })
+    Action.insert({
+      project_id: req.params.id,
+      description: req.body.description,
+      notes: req.body.notes,
+      completed: false,
+    })
       .then((project) => {
         res.status(201).json(project);
       })
@@ -90,7 +100,7 @@ router.delete("/projects/:id", validateProjectId, (req, res) => {
 
 //put request to update specific project with id
 router.put("/projects/:id", validateProject, validateProjectId, (req, res) => {
-  Projects.update(req.params.id, req.body)
+  Project.update(req.params.id, req.body)
     .then((project) => {
       res.status(200).json(project);
       console.log("project updated");
@@ -105,45 +115,36 @@ router.put("/projects/:id", validateProject, validateProjectId, (req, res) => {
 
 //middleware
 function validateProject(req, res, next) {
-  return (req, res, next) => {
-    if (!req.body.name) {
-      return res.status(400).json({ message: "Missing Project Name" });
-    } else if (!req.body.description) {
-      return res.status(400).json({ message: "missing project description" });
-    }
-    next();
-  };
+  if (!req.body.name) {
+    return res.status(400).json({ message: "Missing Project Name" });
+  } else if (!req.body.description) {
+    return res.status(400).json({ message: "missing project description" });
+  }
+  next();
 }
 
 function validateAction(req, res, next) {
-  return (req, res, next) => {
-    if (!req.body.description) {
-      return res.status(400).json({ message: "Missing Action Description" });
-    } else if (!req.body.notes) {
-      return res
-        .status(400)
-        .json({ message: "Missing Required Actions Notes" });
-    }
-    next();
-  };
+  if (!req.body.description) {
+    return res.status(400).json({ message: "Missing Action Description" });
+  } else if (!req.body.notes) {
+    return res.status(400).json({ message: "Missing Required Actions Notes" });
+  }
+  next();
 }
 
 function validateProjectId(req, res, next) {
-  return (req, res, next) => {
-    projects
-      .get(req.params.id)
-      .then((project) => {
-        if (project) {
-          req.project = project;
-          next();
-        } else {
-          res.status(404).json({ message: "Invalid Project ID" });
-        }
-      })
-      .catch((error) => {
-        next(error);
-      });
-  };
+  Project.get(req.params.id)
+    .then((project) => {
+      if (project) {
+        req.project = project;
+        next();
+      } else {
+        res.status(404).json({ message: "Invalid Project ID" });
+      }
+    })
+    .catch((error) => {
+      next(error);
+    });
 }
 
 //isEmpty function for req,body if no text added.
