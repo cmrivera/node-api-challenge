@@ -1,14 +1,14 @@
 const express = require("express");
-const Action = require("../helpers/actionModel");
-const Project = require("../helpers/projectModel");
+const Action = require("../data/helpers/actionModel");
+const Project = require("../data/helpers/projectModel");
 
 const router = express.Router();
 
 //router.get request to req projects, if req works display projects, if not give err 500
 router.get("/projects", (req, res) => {
   Project.get()
-    .then((projects) => {
-      res.status(200).json(projects);
+    .then((project) => {
+      res.status(200).json(project);
     })
     .catch((err) => {
       console.log(err);
@@ -20,26 +20,32 @@ router.get("/projects", (req, res) => {
 
 //router.get request to request specific project with id
 router.get("/projects/:id", validateProjectId, (req, res) => {
-  res.status(200).json(req.project);
+  const id = req.params.id;
+  Project.get(id)
+    .then((project) => {
+      res.status(200).json(project);
+    })
+    .catch((err) => {
+      console.log(err);
+      next(err);
+    });
 });
 
 //post request to add a project, if no error send 201 if err send 500
-router.post("/projects/", (req, res) => {
-  Project.insert(req.project)
+router.post("/projects/", validateProject, (req, res, next) => {
+  Project.insert(req.body)
     .then((project) => {
       res.status(201).json(project);
     })
     .catch((err) => {
       console.log(err);
-      res.status(500).json({
-        message: "err adding project",
-      });
+      next(err);
     });
 });
 
 //get specific projects actions with id, if not give 500 mess
 router.get("/projects/:id/actions", validateProjectId, (req, res) => {
-  Project.getProjectActions(req.action.id)
+  Project.getProjectActions(req.params.id)
     .then((actions) => {
       res.status(200).json(actions);
     })
@@ -51,46 +57,35 @@ router.get("/projects/:id/actions", validateProjectId, (req, res) => {
     });
 });
 
-//router.post request to add a project, if no err send 201, if err send 500
-router.post("/projects/", (req, res) => {
-  Project.insert(req.project)
-    .then((project) => {
-      res.status(201).json(project);
-    })
-    .catch((err) => {
-      console.log(err);
-      res.status(500).json({
-        message: "err adding project",
-      });
-    });
-});
-
 //router.post request for actions, req projet id.
 //if req met display actions of specific project, if not send err message
 router.post(
-  "projects/:id/actions",
+  "/projects/:id/actions",
   validateProjectId,
-  validateProject,
-  (req, res) => {
-    Action.insert(req.action)
-      .then((action) => {
-        res.status(201).json(action);
+  validateAction,
+  (req, res, next) => {
+    Action.insert({
+      project_id: req.params.id,
+      description: req.body.description,
+      notes: req.body.notes,
+      completed: false,
+    })
+      .then((project) => {
+        res.status(201).json(project);
       })
       .catch((err) => {
         console.log(err);
-        res.status(500).json({
-          message: "err adding action",
-        });
+        next(err);
       });
   }
 );
 
 //router to delete project with id given
 router.delete("/projects/:id", validateProjectId, (req, res) => {
-  Project.remove(req.project.id)
+  Project.remove(req.params.id)
     .then((count) => {
       if (count > 0) {
-        res.status(200).json(req.project);
+        res.status(200).json(req.projects);
       } else {
         res.status(404).json({ message: " the project cound not be found" });
       }
@@ -104,63 +99,52 @@ router.delete("/projects/:id", validateProjectId, (req, res) => {
 });
 
 //put request to update specific project with id
-router.put("/projects/:id", validateProjectId, validateProject, (req, res) => {
-  Project.update(req.project.id, req.body)
-    .then((count) => {
-      if (count) {
-        Project.getById(req.project.id)
-          .then((project) => {
-            res.status(200).json(project);
-          })
-          .catch((err) => {
-            console.log(err);
-            res.status(500).json({
-              message: "err during  updating project",
-            });
-          });
-      } else {
-        res.status(404).json({ message: "the project could not be updated" });
-      }
+router.put("/projects/:id", validateProject, validateProjectId, (req, res) => {
+  Project.update(req.params.id, req.body)
+    .then((project) => {
+      res.status(200).json(project);
+      console.log("project updated");
     })
-    .catch((err) => {
-      console.log(err);
+    .catch((error) => {
+      console.log(error);
       res.status(500).json({
-        message: "err updating user",
+        message: "Error updating the project",
       });
     });
 });
 
 //middleware
-function validateProjectId(req, res, next) {
-  // do your magic!
-  const { id } = req.params;
+function validateProject(req, res, next) {
+  if (!req.body.name) {
+    return res.status(400).json({ message: "Missing Project Name" });
+  } else if (!req.body.description) {
+    return res.status(400).json({ message: "missing project description" });
+  }
+  next();
+}
 
-  Project.getById(id)
+function validateAction(req, res, next) {
+  if (!req.body.description) {
+    return res.status(400).json({ message: "Missing Action Description" });
+  } else if (!req.body.notes) {
+    return res.status(400).json({ message: "Missing Required Actions Notes" });
+  }
+  next();
+}
+
+function validateProjectId(req, res, next) {
+  Project.get(req.params.id)
     .then((project) => {
       if (project) {
         req.project = project;
         next();
       } else {
-        res.status(400).json({ message: "invalid project id" });
+        res.status(404).json({ message: "Invalid Project ID" });
       }
     })
-    .catch((err) => {
-      res.status(500).json({ message: "failed", err });
+    .catch((error) => {
+      next(error);
     });
-}
-
-function validateProject(req, res, next) {
-  // do your magic!
-  if (!isEmpty(req.body)) {
-    if (!req.body.name) {
-      res.status(400).json({ message: "missing required project name field" });
-    } else {
-      req.project = req.body;
-      next();
-    }
-  } else {
-    res.status(400).json({ message: "missing project data" });
-  }
 }
 
 //isEmpty function for req,body if no text added.

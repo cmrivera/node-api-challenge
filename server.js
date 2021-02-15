@@ -3,6 +3,9 @@
 const express = require("express");
 const server = express();
 
+const projectRouter = require("./routers/projects-router");
+const actionRouter = require("./routers/actions-router");
+
 server.use(express.json());
 
 server.get("/", (req, res) => {
@@ -12,6 +15,8 @@ server.get("/", (req, res) => {
 //middleware
 
 server.use(logger);
+server.use("/", projectRouter);
+server.use("/", actionRouter);
 
 function logger(req, res, next) {
   console.log(`${req.method} Request ${req.url} [${new Date().toISOString()}]`);
